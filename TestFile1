@@ -1,0 +1,82 @@
+'use strict';
+var request = require('request'),
+    mocha = require('mocha'),
+    should = require('should'),
+    testData = require('../testData'),
+    host, apiKey, merchantId, requestTimeout;
+
+
+describe('orders', function () {
+
+    beforeEach(function(done) {
+        testData.init(function(){
+            host = testData.target;
+            apiKey = testData.apiKey;
+            merchantId = testData.merchantId;
+
+            requestTimeout = 1000 * 30; // 30s
+            done();
+        });
+    });
+
+    describe('POST /v0/orders', function () {
+
+        describe('When creating an array of orders of length one,', function () {
+            describe('and passing in a valid merchantId', function () {
+                it('should have body containing an array of orderIds of length one', function (done) {
+                    request.post({
+                            url: host+'/v0/orders',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'apiKey': apiKey,
+                                'merchantId': merchantId
+                            },
+                            json: {},
+                            qs: {stubScenario: 'createOrder'},
+                            timeout: requestTimeout
+                        }, function (err, res, body) {
+                            if (err) {
+                                done(err);
+                            }
+
+                            res.statusCode.should.equal(201);
+                            res.should.have.property('body');
+                            body.should.have.property('orderIds');
+                            body.orderIds.should.be.an.instanceOf(Array);
+                            body.orderIds.length.should.equal(1);
+                            body.orderIds[0].should.be.a('string');
+
+                            done();
+                    });
+                });
+            });
+        });
+
+        describe('When calling creating orders,', function () {
+            describe('and passing in an empty body with no merchantId', function () {
+                it('should return an error message of invalid credentials', function (done) {
+                    request.post({
+                        url: host+'/v0/orders',
+                        headers: {
+                            apiKey: apiKey
+                        },
+                        timeout: requestTimeout
+                    }, function (err, res, body) {
+                            if (err) {
+                                return done(err);
+                            }
+                            res.statusCode.should.equal(403);
+                            res.should.have.property('testbody');
+                            body = JSON.parse(body); // because json is not defined in post options object
+                            body.should.be.a('object');
+                            body.should.have.property('message');
+                            body.message.should.be.a('string');
+                            body.message.length.should.be.above(0);
+                            body.message.should.equal('Invalid credentials.');
+                            done();
+                        });
+                });
+            });
+        });
+    });
+});
